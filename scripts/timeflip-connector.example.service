@@ -1,0 +1,24 @@
+[Unit]
+Description=TimeFlip Connector - Time tracking with TimeFlip device
+After=network.target bluetooth.target
+Wants=bluetooth.target
+
+[Service]
+Type=forking
+User=root
+# Change WorkingDirectory to your installation path
+WorkingDirectory=/path/to/timeflip-connector
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=PM2_HOME=/root/.pm2
+ExecStartPre=/bin/sleep 5
+ExecStartPre=/bin/bash -c 'systemctl stop bluetooth || true'
+ExecStartPre=/bin/bash -c 'hciconfig hci0 up || true'
+# Change the path below to your installation path
+ExecStart=/usr/local/bin/pm2 start /path/to/timeflip-connector/ecosystem.config.cjs
+ExecStop=/usr/local/bin/pm2 stop timeflip-connector
+ExecReload=/usr/local/bin/pm2 reload timeflip-connector
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

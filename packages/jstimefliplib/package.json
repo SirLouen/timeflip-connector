@@ -1,0 +1,60 @@
+{
+  "name": "jstimefliplib",
+  "version": "1.0.0",
+  "description": "A JavaScript library for TimeFlip devices v2, v3, and v4 - Bluetooth LE time tracking dice",
+  "author": "SirLouen <sir.louen@gmail.com>",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./constants": "./src/constants.js",
+    "./errors": "./src/errors.js",
+    "./scanner": "./src/scanner.js"
+  },
+  "scripts": {
+    "discover": "node src/scripts/discover.js",
+    "check": "node src/scripts/check.js",
+    "set-name": "node src/scripts/set-name.js",
+    "set-password": "node src/scripts/set-password.js",
+    "clear-history": "node src/scripts/clear-history.js"
+  },
+  "bin": {
+    "timeflip-discover": "./src/scripts/discover.js",
+    "timeflip-check": "./src/scripts/check.js",
+    "timeflip-set-name": "./src/scripts/set-name.js",
+    "timeflip-set-passwd": "./src/scripts/set-password.js",
+    "timeflip-clear-history": "./src/scripts/clear-history.js"
+  },
+  "keywords": [
+    "timeflip",
+    "bluetooth",
+    "ble",
+    "bluetooth-le",
+    "time-tracking",
+    "productivity",
+    "noble",
+    "raspberry-pi"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SirLouen/timeflip-connector.git",
+    "directory": "packages/jstimefliplib"
+  },
+  "bugs": {
+    "url": "https://github.com/SirLouen/timeflip-connector/issues"
+  },
+  "homepage": "https://github.com/SirLouen/timeflip-connector/tree/master/packages/jstimefliplib#readme",
+  "files": [
+    "src/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@abandonware/noble": "^1.9.2-25",
+    "commander": "^11.1.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "facets": {
+    "1": "coding",
+    "2": "meeting",
+    "3": "reading",
+    "4": "exercise",
+    "5": "break",
+    "6": "email",
+    "7": "planning",
+    "8": "learning",
+    "9": "admin",
+    "10": "creative",
+    "11": "communication",
+    "12": "stop"
+  },
+  "stopFacet": 12,
+  "settleDelayMs": 5000,
+  "description": "Configure facet names here. The stopFacet number indicates which facet stops the timer."
+}
