@@ -44,7 +44,7 @@
   "bugs": {
     "url": "https://github.com/SirLouen/timeflip-connector/issues"
   },
-  "homepage": "https://github.com/SirLouen/timeflip-connector/tree/master/packages/jstimefliplib#readme",
+  "homepage": "https://github.com/SirLouen/timeflip-connector/tree/main/packages/jstimefliplib#readme",
   "files": [
     "src/**/*",
     "README.md",
