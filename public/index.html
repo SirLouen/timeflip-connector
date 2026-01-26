@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TimeFlip Connector</title>
+  <style>
+    :root {
+      --bg-primary: #1a1a2e;
+      --bg-secondary: #16213e;
+      --bg-card: #0f3460;
+      --text-primary: #eee;
+      --text-secondary: #aaa;
+      --accent: #e94560;
+      --success: #4caf50;
+      --warning: #ff9800;
+      --border-radius: 12px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      margin-bottom: 5px;
+    }
+
+    header p {
+      color: var(--text-secondary);
+    }
+
+    .card {
+      background: var(--bg-secondary);
+      border-radius: var(--border-radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .card h2 {
+      font-size: 1.2rem;
+      margin-bottom: 15px;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+    }
+
+    .status-item {
+      background: var(--bg-card);
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .status-item .label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .status-item .value {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+
+    .status-connected {
+      color: var(--success);
+    }
+
+    .status-disconnected {
+      color: var(--accent);
+    }
+
+    .facet-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .facet-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      background: var(--bg-card);
+      padding: 12px 15px;
+      border-radius: 8px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .facet-item:hover {
+      transform: translateX(5px);
+      box-shadow: 0 2px 8px rgba(233, 69, 96, 0.2);
+    }
+
+    .facet-item.active {
+      border-left: 4px solid var(--accent);
+      background: linear-gradient(90deg, rgba(233, 69, 96, 0.2) 0%, var(--bg-card) 100%);
+    }
+
+    .facet-item.stop-facet {
+      border-left: 4px solid var(--warning);
+    }
+
+    .facet-number {
+      background: var(--accent);
+      color: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .facet-item.stop-facet .facet-number {
+      background: var(--warning);
+    }
+
+    .facet-input {
+      flex: 1;
+      background: var(--bg-secondary);
+      border: 1px solid #333;
+      color: var(--text-primary);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    .facet-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .stop-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .stop-toggle input {
+      cursor: pointer;
+    }
+
+    .btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    .btn:hover {
+      background: #d63850;
+      transform: translateY(-2px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      background: #555;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-container {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .btn-secondary {
+      background: var(--bg-card);
+      border: 1px solid var(--accent);
+    }
+
+    .btn-secondary:hover {
+      background: var(--accent);
+    }
+
+    .message {
+      padding: 12px 15px;
+      border-radius: 8px;
+      margin-top: 15px;
+      display: none;
+    }
+
+    .message.success {
+      background: rgba(76, 175, 80, 0.2);
+      border: 1px solid var(--success);
+      color: var(--success);
+      display: block;
+    }
+
+    .message.error {
+      background: rgba(233, 69, 96, 0.2);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      display: block;
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #333;
+    }
+
+    .settings-row label {
+      color: var(--text-secondary);
+    }
+
+    .settings-row input {
+      width: 80px;
+      background: var(--bg-card);
+      border: 1px solid #333;
+      color: var(--text-primary);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    .settings-row input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .loading {
+      text-align: center;
+      color: var(--text-secondary);
+      padding: 40px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--bg-card);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 600px) {
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .facet-item {
+        flex-wrap: wrap;
+      }
+      
+      .facet-input {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🔵 TimeFlip Connector</h1>
+      <p>Device status and facet configuration</p>
+    </header>
+
+    <!-- Status Card -->
+    <div class="card">
+      <h2>📊 Status</h2>
+      <div class="status-grid">
+        <div class="status-item">
+          <div class="label">Active Timer</div>
+          <div class="value" id="active-timer">-</div>
+        </div>
+        <div class="status-item">
+          <div class="label">Timer Duration</div>
+          <div class="value" id="timer-duration">-</div>
+        </div>
+      </div>
+      <p style="margin-top: 15px; color: var(--text-secondary); font-size: 0.85rem;">
+        💡 TimeFlip is a BLE device - it only connects briefly when you flip it to change facets.
+      </p>
+    </div>
+
+    <!-- Facets Card -->
+    <div class="card">
+      <h2>🎲 Facet Configuration</h2>
+      <div id="facets-container">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>Loading facets...</p>
+        </div>
+      </div>
+      
+      <div class="settings-row" id="settings-row" style="display: none;">
+        <label for="settle-delay">Settle delay:</label>
+        <input type="number" id="settle-delay" min="1000" max="30000" step="1000" value="5000">
+        <span>ms</span>
+      </div>
+      
+      <div class="btn-container" id="btn-container" style="display: none;">
+        <button class="btn btn-secondary" id="reset-btn">Reset</button>
+        <button class="btn" id="save-btn">Save Changes</button>
+      </div>
+      
+      <div class="message" id="message"></div>
+    </div>
+  </div>
+
+  <script>
+    let originalConfig = null;
+    let currentConfig = null;
+    let stopFacet = 12;
+
+    // Format duration from seconds
+    function formatDuration(seconds) {
+      if (!seconds || seconds < 0) return '-';
+      
+      const hours = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      const secs = Math.floor(seconds % 60);
+      
+      if (hours > 0) {
+        return `${hours}h ${mins}m`;
+      } else if (mins > 0) {
+        return `${mins}m ${secs}s`;
+      } else {
+        return `${secs}s`;
+      }
+    }
+
+    // Format relative time
+    function formatRelativeTime(isoString) {
+      if (!isoString) return 'Never';
+      
+      const date = new Date(isoString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffSecs = Math.floor(diffMs / 1000);
+      const diffMins = Math.floor(diffSecs / 60);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+      
+      if (diffSecs < 60) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ${diffMins % 60}m ago`;
+      return `${diffDays}d ago`;
+    }
+
+    // Fetch status every 5 seconds (less frequent since device is usually asleep)
+    async function fetchStatus() {
+      try {
+        const response = await fetch('/api/status');
+        const status = await response.json();
+        
+        const timerEl = document.getElementById('active-timer');
+        const durationEl = document.getElementById('timer-duration');
+        
+        if (status.currentRecord) {
+          // Show activity name (remove # prefix for cleaner display)
+          const activityName = status.currentFacetName || status.currentRecord.ds.replace('#', '');
+          timerEl.innerHTML = `<span class="status-connected">${activityName}</span>`;
+          
+          // Calculate and show duration
+          const startTime = status.currentRecord.t1;
+          const now = Date.now() / 1000;
+          const durationSecs = now - startTime;
+          durationEl.textContent = formatDuration(durationSecs);
+          
+          // Highlight current facet in the list if we can match by name
+          highlightCurrentFacetByName(activityName);
+        } else {
+          timerEl.textContent = 'Stopped';
+          durationEl.textContent = '-';
+          // Remove any highlights
+          document.querySelectorAll('.facet-item').forEach(item => item.classList.remove('active'));
+        }
+        
+      } catch (error) {
+        console.error('Failed to fetch status:', error);
+      }
+    }
+
+    function highlightCurrentFacetByName(facetName) {
+      document.querySelectorAll('.facet-item').forEach(item => {
+        item.classList.remove('active');
+        const input = item.querySelector('.facet-input');
+        if (input && input.value.toLowerCase() === facetName.toLowerCase()) {
+          item.classList.add('active');
+        }
+      });
+    }
+
+    // Fetch and display facets
+    async function fetchFacets() {
+      try {
+        const response = await fetch('/api/facets');
+        const config = await response.json();
+        
+        originalConfig = JSON.parse(JSON.stringify(config));
+        currentConfig = config;
+        stopFacet = config.stopFacet || 12;
+        
+        renderFacets(config);
+        
+        document.getElementById('settle-delay').value = config.settleDelayMs || 5000;
+        document.getElementById('settings-row').style.display = 'flex';
+        document.getElementById('btn-container').style.display = 'flex';
+      } catch (error) {
+        console.error('Failed to fetch facets:', error);
+        document.getElementById('facets-container').innerHTML = 
+          '<p style="color: var(--accent);">Failed to load facet configuration</p>';
+      }
+    }
+
+    function renderFacets(config) {
+      const container = document.getElementById('facets-container');
+      const facets = config.facets;
+      
+      let html = '<div class="facet-list">';
+      
+      for (let i = 1; i <= 12; i++) {
+        const name = facets[i] || `facet_${i}`;
+        const isStop = i === stopFacet;
+        
+        html += `
+          <div class="facet-item ${isStop ? 'stop-facet' : ''}" data-facet="${i}">
+            <div class="facet-number">${i}</div>
+            <input type="text" class="facet-input" data-facet="${i}" value="${name}">
+            <label class="stop-toggle">
+              <input type="radio" name="stopFacet" value="${i}" ${isStop ? 'checked' : ''}>
+              Stop
+            </label>
+          </div>
+        `;
+      }
+      
+      html += '</div>';
+      container.innerHTML = html;
+      
+      // Add event listeners
+      document.querySelectorAll('.facet-input').forEach(input => {
+        input.addEventListener('input', () => {
+          currentConfig.facets[input.dataset.facet] = input.value;
+        });
+      });
+      
+      document.querySelectorAll('input[name="stopFacet"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          stopFacet = parseInt(e.target.value);
+          currentConfig.stopFacet = stopFacet;
+          // Re-render to update styling
+          renderFacets(currentConfig);
+        });
+      });
+    }
+
+    // Save configuration
+    async function saveConfig() {
+      const saveBtn = document.getElementById('save-btn');
+      const messageEl = document.getElementById('message');
+      
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+      
+      currentConfig.settleDelayMs = parseInt(document.getElementById('settle-delay').value) || 5000;
+      currentConfig.stopFacet = stopFacet;
+      
+      try {
+        const response = await fetch('/api/facets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentConfig)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          originalConfig = JSON.parse(JSON.stringify(currentConfig));
+          messageEl.className = 'message success';
+          messageEl.textContent = result.message;
+        } else {
+          messageEl.className = 'message error';
+          messageEl.textContent = result.error || 'Failed to save';
+        }
+      } catch (error) {
+        messageEl.className = 'message error';
+        messageEl.textContent = 'Network error: ' + error.message;
+      }
+      
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Changes';
+      
+      // Hide message after 5 seconds
+      setTimeout(() => {
+        messageEl.className = 'message';
+      }, 5000);
+    }
+
+    // Reset to original
+    function resetConfig() {
+      currentConfig = JSON.parse(JSON.stringify(originalConfig));
+      stopFacet = originalConfig.stopFacet || 12;
+      renderFacets(currentConfig);
+      document.getElementById('settle-delay').value = originalConfig.settleDelayMs || 5000;
+      document.getElementById('message').className = 'message';
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchStatus();
+      fetchFacets();
+      
+      // Poll status every 5 seconds (device is usually asleep)
+      setInterval(fetchStatus, 5000);
+      
+      document.getElementById('save-btn').addEventListener('click', saveConfig);
+      document.getElementById('reset-btn').addEventListener('click', resetConfig);
+    });
+  </script>
+</body>
+</html>

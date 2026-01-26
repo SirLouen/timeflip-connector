@@ -56,5 +56,10 @@
   },
   "engines": {
     "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "@stoprocent/noble": "^2.3.10",
+    "noble-winrt": "^0.1.1",
+    "node-ble": "^1.13.0"
   }
 }

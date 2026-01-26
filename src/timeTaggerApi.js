@@ -144,7 +144,7 @@ class TimeTaggerApi {
       );
       
       if (runningRecord) {
-        console.log(`[TimeTaggerApi] Found running record: ${runningRecord.ds}`);
+        // Only log on first discovery or when record changes (logged elsewhere)
         return runningRecord;
       }
       

@@ -10,6 +10,7 @@ A Node.js service that connects your [TimeFlip](https://timeflip.io/) device to 
 - 🔄 **Auto-reconnect** - Automatically reconnects if the Bluetooth connection is lost
 - 🚀 **Background service** - Runs as a systemd service with PM2 process management
 - 📊 **TimeTagger integration** - Seamlessly integrates with your self-hosted TimeTagger instance
+- 🌐 **Web interface** - Simple web UI to view device status and manage facet configuration
 
 ## Requirements
 
@@ -66,6 +67,9 @@ TIMEFLIP_PASSWORD=000000
 # TimeTagger API Configuration
 TIMETAGGER_URL=https://your-timetagger-instance.com/timetagger/api/v2
 TIMETAGGER_TOKEN=your_api_token_here
+
+# Web Interface (optional)
+WEB_PORT=3000
 ```
 
 To get your TimeTagger API token, go to your TimeTagger instance → Account → API token.
@@ -102,6 +106,23 @@ Edit `config/facets.json` to map each facet number to an activity:
 - **facets**: Maps facet numbers (1-12) to TimeTagger activity tags
 - **stopFacet**: Which facet number stops the current timer (set to `null` to disable)
 - **settleDelayMs**: Delay in milliseconds before registering a flip (prevents accidental triggers)
+
+## Web Interface
+
+The connector includes a simple web interface that allows you to:
+
+- **View device status**: See if the TimeFlip is connected and what facet is currently active
+- **Monitor active timer**: Check which timer is currently running
+- **Edit facet configuration**: Modify facet names and the stop facet directly from the browser
+- **Save changes**: Update the configuration file without editing JSON manually
+
+By default, the web interface runs on port 3000. Access it at `http://localhost:3000` (or your server's IP address).
+
+You can change the port by setting the `WEB_PORT` environment variable:
+
+```bash
+WEB_PORT=8080
+```
 
 ## Usage
 

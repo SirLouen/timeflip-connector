@@ -12,6 +12,7 @@
 import 'dotenv/config';
 import { AsyncClient, DEFAULT_PASSWORD } from 'jstimefliplib';
 import { timeTaggerApi } from './src/timeTaggerApi.js';
+import { startWebServer, setTimeTaggerApi } from './src/webServer.js';
 import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -24,6 +25,7 @@ const __dirname = dirname(__filename);
 const DEVICE_ADDRESS = process.env.TIMEFLIP_ADDRESS || '00:11:22:33:44:55';
 const PASSWORD = process.env.TIMEFLIP_PASSWORD || DEFAULT_PASSWORD;
 const API_TOKEN = process.env.TIMETAGGER_TOKEN || '';
+const WEB_PORT = parseInt(process.env.WEB_PORT || '3000', 10);
 
 // Load facet configuration
 function loadFacetConfig() {
@@ -50,7 +52,7 @@ let client = null;
 let currentRecord = null;
 let settleTimer = null;
 let pendingFacet = null;
-let confirmedFacet = null;
+let lastConfirmedFacet = null;  // For deduplication only
 
 /**
  * Get facet name from config
@@ -134,34 +136,39 @@ async function stopTracking() {
  * @param {number} facetNumber - The confirmed facet number
  */
 async function handleConfirmedFacetChange(facetNumber) {
-  const facetName = getFacetName(facetNumber);
-  const timestamp = new Date().toLocaleTimeString();
-  
-  console.log(`\n✅ [${timestamp}] Facet confirmed: ${facetNumber} (${facetName})`);
-  
-  // Check if this is the stop facet
-  if (isStopFacet(facetNumber)) {
-    await stopTracking();
-    confirmedFacet = facetNumber;
-    return;
-  }
-  
-  // If there's an active record for a different activity, stop it first
-  if (currentRecord) {
-    const currentFacetName = currentRecord.ds.replace('#', '');
-    if (currentFacetName !== facetName.replace(/\s+/g, '_').toLowerCase()) {
-      console.log(`   Switching from ${currentRecord.ds} to #${facetName}`);
+  try {
+    const facetName = getFacetName(facetNumber);
+    const timestamp = new Date().toLocaleTimeString();
+    
+    console.log(`\n✅ [${timestamp}] Facet confirmed: ${facetNumber} (${facetName})`);
+    
+    // Update last confirmed for deduplication
+    lastConfirmedFacet = facetNumber;
+    
+    // Check if this is the stop facet
+    if (isStopFacet(facetNumber)) {
       await stopTracking();
-    } else {
-      console.log(`   Already tracking #${facetName}, no change needed`);
-      confirmedFacet = facetNumber;
       return;
     }
+    
+    // If there's an active record for a different activity, stop it first
+    if (currentRecord) {
+      const currentFacetName = currentRecord.ds.replace('#', '');
+      if (currentFacetName !== facetName.replace(/\s+/g, '_').toLowerCase()) {
+        console.log(`   Switching from ${currentRecord.ds} to #${facetName}`);
+        await stopTracking();
+      } else {
+        console.log(`   Already tracking #${facetName}, no change needed`);
+        return;
+      }
+    }
+    
+    // Start new tracking
+    await startTracking(facetNumber);
+  } catch (error) {
+    console.error(`❌ [handleConfirmedFacetChange] Error: ${error.message}`);
+    console.error(error.stack);
   }
-  
-  // Start new tracking
-  await startTracking(facetNumber);
-  confirmedFacet = facetNumber;
 }
 
 /**
@@ -181,8 +188,8 @@ function onFacetChange(facet) {
     return;
   }
   
-  // If same as confirmed and no pending, ignore
-  if (facet === confirmedFacet && !pendingFacet) {
+  // If same as last confirmed and no pending, ignore
+  if (facet === lastConfirmedFacet && !pendingFacet) {
     console.log(`   (Already confirmed, ignoring)`);
     return;
   }
@@ -200,28 +207,37 @@ function onFacetChange(facet) {
   // Start settle timer
   console.log(`   ⏳ Waiting ${settleDelay / 1000}s to confirm...`);
   settleTimer = setTimeout(async () => {
-    settleTimer = null;
-    const confirmedFacetNumber = pendingFacet;
-    pendingFacet = null;
-    
-    await handleConfirmedFacetChange(confirmedFacetNumber);
+    try {
+      settleTimer = null;
+      const confirmedFacetNumber = pendingFacet;
+      pendingFacet = null;
+      
+      await handleConfirmedFacetChange(confirmedFacetNumber);
+    } catch (error) {
+      console.error(`❌ [SettleTimer] Error: ${error.message}`);
+      console.error(error.stack);
+    }
   }, settleDelay);
 }
 
 /**
  * Callback function when device disconnects
+ * This is expected behavior for BLE devices - they disconnect after brief interaction
  * @param {AsyncClient} clientInstance - The client instance
  */
 async function onDisconnect(clientInstance) {
-  console.log('\n⚠️  Device disconnected!');
+  const timestamp = new Date().toLocaleTimeString();
+  console.log(`[${timestamp}] 💤 TimeFlip device went to sleep (normal BLE behavior)`);
   
-  // Stop any active tracking
-  if (currentRecord) {
-    console.log('   Stopping active timer due to disconnect...');
-    await stopTracking();
+  // Note: We do NOT stop tracking or change state on disconnect
+  // The timer continues running in TimeTagger until the next facet change
+  // This is correct because the TimeFlip only wakes up on physical interaction
+  
+  // Resolve the disconnect promise if it exists (to continue the main loop)
+  if (clientInstance._disconnectResolve) {
+    clientInstance._disconnectResolve();
+    clientInstance._disconnectResolve = null;
   }
-  
-  process.exit(1);
 }
 
 /**
@@ -265,101 +281,43 @@ async function main() {
   // Display configuration
   displayConfig();
   
+  // Start web server with TimeTagger API reference
+  setTimeTaggerApi(timeTaggerApi);
+  startWebServer(WEB_PORT);
+  
+  // Check if there's already a running record in TimeTagger
+  console.log('\n🔍 Checking for running timer in TimeTagger...');
+  const runningRecord = await timeTaggerApi.getRunningRecord();
+  
+  if (runningRecord) {
+    console.log(`   Found running timer: ${runningRecord.ds}`);
+    currentRecord = runningRecord;
+  } else {
+    console.log('   No running timer found');
+  }
+  
+  console.log('\n💡 TimeFlip BLE Behavior:');
+  console.log('   The TimeFlip device is normally asleep and disconnected.');
+  console.log('   It only wakes up briefly when you flip it to change facets.');
+  console.log('   This connector will detect facet changes when the device wakes up.');
+  console.log('');
+  
   // Create client with disconnect callback
   client = new AsyncClient(DEVICE_ADDRESS, onDisconnect);
   
-  try {
-    // Connect to the device
-    console.log(`\n🔍 Searching for TimeFlip device: ${DEVICE_ADDRESS}`);
-    console.log('   (Make sure to wake up the device by flipping it!)\n');
+  // Handle graceful shutdown
+  const shutdown = async () => {
+    console.log('\n\n🛑 Shutting down...');
     
-    await client.connect();
-    console.log('✅ Connected to TimeFlip device!\n');
-    
-    // Setup client with facet change callback and password
-    console.log('🔐 Logging in...');
-    await client.setup(onFacetChange, PASSWORD);
-    console.log('✅ Setup complete!\n');
-    
-    // Display device information
-    console.log('📱 Device Information:');
-    console.log('─────────────────────────────────────');
-    console.log(`   Name:     ${await client.deviceName()}`);
-    console.log(`   Firmware: ${await client.firmwareRevision()}`);
-    const battery = await client.batteryLevel();
-    console.log(`   Battery:  ${battery >= 0 ? battery + '%' : 'N/A'}`);
-    
-    // Get current facet
-    const currentFacet = await client.currentFacet(true);
-    const currentFacetName = getFacetName(currentFacet);
-    confirmedFacet = currentFacet;
-    
-    console.log(`\n🎲 Current facet: ${currentFacet} (${currentFacetName})`);
-    
-    // Check if there's already a running record in TimeTagger
-    console.log('\n🔍 Checking for running timer in TimeTagger...');
-    const runningRecord = await timeTaggerApi.getRunningRecord();
-    
-    if (runningRecord) {
-      console.log(`   Found running timer: ${runningRecord.ds}`);
-      currentRecord = runningRecord;
-      
-      // Check if current facet matches the running record
-      const runningFacetName = runningRecord.ds.replace('#', '');
-      const expectedFacetName = currentFacetName.replace(/\s+/g, '_').toLowerCase();
-      
-      if (runningFacetName !== expectedFacetName && !isStopFacet(currentFacet)) {
-        console.log(`   Facet doesn't match running timer, will switch after settle delay`);
-      }
-    } else {
-      console.log('   No running timer found');
-      
-      // If current facet is not stop, start tracking
-      if (!isStopFacet(currentFacet)) {
-        console.log(`   Starting timer for current facet: #${currentFacetName}`);
-        await startTracking(currentFacet);
-      }
+    // Cancel settle timer
+    if (settleTimer) {
+      clearTimeout(settleTimer);
     }
     
-    // Keep the app running to listen for facet changes
-    console.log('\n👂 Listening for facet changes...');
-    console.log('   (Flip the TimeFlip to switch activities)');
-    console.log('   (Press Ctrl+C to exit)\n');
-    
-    // Handle graceful shutdown
-    const shutdown = async () => {
-      console.log('\n\n🛑 Shutting down...');
-      
-      // Cancel settle timer
-      if (settleTimer) {
-        clearTimeout(settleTimer);
-      }
-      
-      // Stop any active tracking
-      if (currentRecord) {
-        console.log('   Stopping active timer...');
-        await stopTracking();
-      }
-      
-      await client.disconnect();
-      console.log('👋 Disconnected. Goodbye!');
-      process.exit(0);
-    };
-    
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
-    
-    // Keep the process alive
-    await new Promise(() => {});
-    
-  } catch (error) {
-    console.error('❌ Error:', error.message);
-    
-    if (error.message.includes('timeout')) {
-      console.log('\n💡 Tips:');
-      console.log('   - Make sure your TimeFlip device is nearby and awake');
-      console.log('   - Flip the device to wake it up before running this app');
-      console.log('   - Set the correct address: TIMEFLIP_ADDRESS=xx:xx:xx:xx:xx:xx');
+    // Stop any active tracking
+    if (currentRecord) {
+      console.log('   Stopping active timer...');
+      await stopTracking();
     }
     
     try {
@@ -367,9 +325,74 @@ async function main() {
     } catch {
       // Ignore disconnect errors
     }
-    
-    process.exit(1);
-  }
+    console.log('👋 Disconnected. Goodbye!');
+    process.exit(0);
+  };
+  
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+  
+  // Main connection loop
+  console.log(`👂 Waiting for TimeFlip device: ${DEVICE_ADDRESS}`);
+  console.log('   (Flip the device to wake it up and register facet changes)\n');
+  
+  // Connect and let the callbacks handle everything
+  const connectLoop = async () => {
+    while (true) {
+      try {
+        // Try to connect to the device
+        await client.connect();
+        
+        const timestamp = new Date().toLocaleTimeString();
+        console.log(`[${timestamp}] ✅ Device woke up - connected!`);
+        
+        // Setup client with facet change callback and password
+        await client.setup(onFacetChange, PASSWORD);
+        
+        // Get current facet
+        const currentFacet = await client.currentFacet(true);
+        const currentFacetName = getFacetName(currentFacet);
+        
+        console.log(`[${timestamp}] 🎲 Current facet: ${currentFacet} (${currentFacetName})`);
+        
+        // If facet changed from last known, trigger the facet change handler
+        // The onFacetChange callback will handle the settle delay
+        if (currentFacet !== lastConfirmedFacet) {
+          onFacetChange(currentFacet);
+        }
+        
+        // Wait until disconnected - the device will go to sleep on its own
+        // The onDisconnect callback is called by AsyncClient automatically
+        // We need to wait for that to happen before trying to reconnect
+        await new Promise(resolve => {
+          // Store resolve to be called when disconnect happens
+          client._disconnectResolve = resolve;
+        });
+        
+      } catch (error) {
+        // Connection timeout is expected - device is asleep
+        if (!error.message.includes('timeout') && !error.message.includes('connect')) {
+          // Log unexpected errors
+          const timestamp = new Date().toLocaleTimeString();
+          console.log(`[${timestamp}] ⚠️  Unexpected error: ${error.message}`);
+        }
+        
+        try {
+          await client.disconnect();
+        } catch {
+          // Ignore disconnect errors
+        }
+      }
+      
+      // Brief pause before next connection attempt
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Recreate client for next connection attempt
+      client = new AsyncClient(DEVICE_ADDRESS, onDisconnect);
+    }
+  };
+  
+  connectLoop();
 }
 
 // Run the app

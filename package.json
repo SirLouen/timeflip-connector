@@ -11,8 +11,9 @@
     "discover": "node packages/jstimefliplib/src/scripts/discover.js"
   },
   "dependencies": {
-    "jstimefliplib": "workspace:*",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "express": "^5.2.1",
+    "jstimefliplib": "workspace:*"
   },
   "engines": {
     "node": ">=16.0.0"
