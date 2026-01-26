@@ -7,6 +7,7 @@ node_modules/
 
 # User-specific configuration
 config/facets.json
+config/state.json
 ecosystem.config.cjs
 scripts/timeflip-connector.service
 
