@@ -21,3 +21,10 @@ The web interface shows:
 - Current facet name
 
 It does NOT show connection status, since the device is almost always disconnected by design.
+
+To reload the connector ALWAYS use 
+
+```bash
+sudo service timeflip-connector restart
+```
+Do not use pm2 directly, because despite you could be able to restart the process, systemd would not be aware of it and it will stay running in the background.

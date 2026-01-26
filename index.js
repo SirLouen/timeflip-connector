@@ -13,7 +13,7 @@ import 'dotenv/config';
 import { AsyncClient, DEFAULT_PASSWORD } from 'jstimefliplib';
 import { timeTaggerApi } from './src/timeTaggerApi.js';
 import { startWebServer, setTimeTaggerApi } from './src/webServer.js';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -46,6 +46,9 @@ function loadFacetConfig() {
   }
 }
 
+// State file path
+const statePath = join(__dirname, 'config', 'state.json');
+
 // Global state
 let config = null;
 let client = null;
@@ -72,6 +75,25 @@ function isStopFacet(facetNumber) {
   const stopFacet = config.stopFacet || 12;
   // Compare as numbers to handle string/int mismatch
   return Number(facetNumber) === Number(stopFacet);
+}
+
+/**
+ * Save current state to JSON file
+ * @param {number} facetNumber - The current facet number
+ * @param {string} facetName - The current facet name
+ */
+function saveState(facetNumber, facetName) {
+  const state = {
+    currentFacet: facetNumber,
+    currentFacetName: facetName,
+    lastFacetChangeTime: new Date().toISOString()
+  };
+  
+  try {
+    writeFileSync(statePath, JSON.stringify(state, null, 2));
+  } catch (error) {
+    console.error(`❌ Failed to save state: ${error.message}`);
+  }
 }
 
 /**
@@ -144,6 +166,9 @@ async function handleConfirmedFacetChange(facetNumber) {
     
     // Update last confirmed for deduplication
     lastConfirmedFacet = facetNumber;
+    
+    // Save state to JSON file
+    saveState(facetNumber, facetName);
     
     // Check if this is the stop facet
     if (isStopFacet(facetNumber)) {

@@ -11,6 +11,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const configPath = join(__dirname, '..', 'config', 'facets.json');
+const statePath = join(__dirname, '..', 'config', 'state.json');
 
 // TimeTagger API reference (will be set by main app)
 let timeTaggerApi = null;
@@ -36,6 +37,23 @@ function loadConfig() {
     return JSON.parse(configData);
   } catch (error) {
     console.error(`Error reading config: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Load state from file
+ * @returns {Object} - The state data
+ */
+function loadState() {
+  if (!existsSync(statePath)) {
+    return null;
+  }
+  try {
+    const stateData = readFileSync(statePath, 'utf-8');
+    return JSON.parse(stateData);
+  } catch (error) {
+    console.error(`Error reading state: ${error.message}`);
     return null;
   }
 }
@@ -84,10 +102,15 @@ export function startWebServer(port = 3000) {
         }
       }
       
+      // Load state from state.json
+      const state = loadState();
+      
       res.json({
         currentFacetName: currentFacetName,
         isTracking: currentRecord !== null,
-        currentRecord: currentRecord
+        currentRecord: currentRecord,
+        lastFacetName: state?.currentFacetName || null,
+        lastFacetChangeTime: state?.lastFacetChangeTime || null
       });
     } catch (error) {
       console.error('[WebServer] Error fetching status:', error.message);

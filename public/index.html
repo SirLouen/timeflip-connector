@@ -317,6 +317,10 @@
           <div class="value" id="active-timer">-</div>
         </div>
         <div class="status-item">
+          <div class="label">Last Facet</div>
+          <div class="value" id="last-facet">-</div>
+        </div>
+        <div class="status-item">
           <div class="label">Timer Duration</div>
           <div class="value" id="timer-duration">-</div>
         </div>
@@ -398,26 +402,38 @@
         const status = await response.json();
         
         const timerEl = document.getElementById('active-timer');
+        const lastFacetEl = document.getElementById('last-facet');
         const durationEl = document.getElementById('timer-duration');
         
+        // Show Active Timer from TimeTagger
         if (status.currentRecord) {
           // Show activity name (remove # prefix for cleaner display)
           const activityName = status.currentFacetName || status.currentRecord.ds.replace('#', '');
           timerEl.innerHTML = `<span class="status-connected">${activityName}</span>`;
           
-          // Calculate and show duration
-          const startTime = status.currentRecord.t1;
-          const now = Date.now() / 1000;
-          const durationSecs = now - startTime;
-          durationEl.textContent = formatDuration(durationSecs);
-          
           // Highlight current facet in the list if we can match by name
           highlightCurrentFacetByName(activityName);
         } else {
           timerEl.textContent = 'Stopped';
-          durationEl.textContent = '-';
           // Remove any highlights
           document.querySelectorAll('.facet-item').forEach(item => item.classList.remove('active'));
+        }
+        
+        // Show Last Facet from state.json
+        if (status.lastFacetName) {
+          lastFacetEl.textContent = status.lastFacetName;
+        } else {
+          lastFacetEl.textContent = '-';
+        }
+        
+        // Calculate Timer Duration from lastFacetChangeTime in state.json
+        if (status.lastFacetChangeTime) {
+          const lastChangeTime = new Date(status.lastFacetChangeTime).getTime() / 1000;
+          const now = Date.now() / 1000;
+          const durationSecs = now - lastChangeTime;
+          durationEl.textContent = formatDuration(durationSecs);
+        } else {
+          durationEl.textContent = '-';
         }
         
       } catch (error) {
