@@ -12,7 +12,7 @@
 import 'dotenv/config';
 import { AsyncClient, DEFAULT_PASSWORD } from 'jstimefliplib';
 import { timeTaggerApi } from './src/timeTaggerApi.js';
-import { startWebServer, setTimeTaggerApi } from './src/webServer.js';
+import { startWebServer, setTimeTaggerApi, setConfigReloadCallback } from './src/webServer.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -308,6 +308,10 @@ async function main() {
   
   // Start web server with TimeTagger API reference
   setTimeTaggerApi(timeTaggerApi);
+  setConfigReloadCallback((newConfig) => {
+    config = newConfig;
+    console.log('🔄 Configuration reloaded from web interface');
+  });
   startWebServer(WEB_PORT);
   
   // Check if there's already a running record in TimeTagger

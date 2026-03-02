@@ -15,6 +15,7 @@ const statePath = join(__dirname, '..', 'config', 'state.json');
 
 // TimeTagger API reference (will be set by main app)
 let timeTaggerApi = null;
+let onConfigReload = null;
 
 /**
  * Set the TimeTagger API reference
@@ -22,6 +23,14 @@ let timeTaggerApi = null;
  */
 export function setTimeTaggerApi(api) {
   timeTaggerApi = api;
+}
+
+/**
+ * Set callback to reload config in the main app
+ * @param {Function} callback - Called with the new config after save
+ */
+export function setConfigReloadCallback(callback) {
+  onConfigReload = callback;
 }
 
 /**
@@ -153,9 +162,10 @@ export function startWebServer(port = 3000) {
     }
     
     if (saveConfig(newConfig)) {
-      // Update the app state config
-      appState.config = newConfig;
-      res.json({ success: true, message: 'Configuration saved. Restart the app to apply changes.' });
+      if (onConfigReload) {
+        onConfigReload(newConfig);
+      }
+      res.json({ success: true, message: 'Configuration saved and applied.' });
     } else {
       res.status(500).json({ error: 'Failed to save configuration' });
     }
